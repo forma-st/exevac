@@ -2,11 +2,11 @@
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { createSession } from "@/lib/auth";
+import { OPEN_ACCESS, createSession, realUsers } from "@/lib/auth";
 import { audit, passwordProblem } from "@/lib/security";
 
 export async function setupAdmin(_: string | null, f: FormData) {
-  if ((await db.user.count()) > 0) return "L'application est déjà initialisée.";
+  if (OPEN_ACCESS || (await db.user.count({ where: realUsers })) > 0) return "L'application est déjà initialisée.";
   const name = String(f.get("name") || "").trim();
   const email = String(f.get("email") || "").trim().toLowerCase();
   const password = String(f.get("password") || "");

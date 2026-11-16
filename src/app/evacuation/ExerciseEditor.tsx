@@ -273,7 +273,7 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
               <span className="label">Date de l'exercice</span>
               <input type="date" className={field} value={r.date} onChange={(e) => update({ date: e.target.value })} />
             </label>
-            <Text label="Créé par" value={r.author} onChange={(v) => update({ author: v })} />
+            <Text label="Créé par" value={r.author} placeholder="Votre nom" onChange={(v) => { update({ author: v }); try { localStorage.setItem("exevac-auteur", v); } catch { /* stockage indisponible */ } }} />
           </div>
         </div>
       </Section>

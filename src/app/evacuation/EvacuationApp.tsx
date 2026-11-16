@@ -27,7 +27,11 @@ function pageAssets() {
   return [...urls].filter((u) => u.startsWith(location.origin + "/_next/static/"));
 }
 
-export function EvacuationApp({ user }: { user: Me }) {
+const GUEST = "public"; // rapports saisis en accès libre : repris ensuite par le compte connecté
+const AUTHOR_KEY = "exevac-auteur";
+const lastAuthor = () => { try { return localStorage.getItem(AUTHOR_KEY) ?? ""; } catch { return ""; } };
+
+export function EvacuationApp({ user, open = false }: { user: Me; open?: boolean }) {
   const online = useOnline();
   const [recs, setRecs] = useState<LocalReport[] | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -41,7 +45,8 @@ export function EvacuationApp({ user }: { user: Me }) {
   // Chargement des rapports gardés sur l'appareil
   useEffect(() => {
     askPersistence();
-    listReports(user.id).then((list) => {
+    Promise.all([listReports(user.id), user.id === GUEST ? [] : listReports(GUEST)]).then(([mine, guest]) => {
+      const list = [...mine, ...guest];
       setRecs(list);
       const wanted = location.hash.slice(1);
       if (wanted && list.some((r) => r.id === wanted)) setOpenId(wanted);
@@ -141,7 +146,7 @@ export function EvacuationApp({ user }: { user: Me }) {
   const propose = canSync && dirty.length > 0 && !progress && !(current && statusOf(current.report) === "EN_COURS");
 
   async function create() {
-    const rec: LocalReport = { id: "", ownerId: user.id, report: emptyReport(user.name), dirty: true, syncedAt: null };
+    const rec: LocalReport = { id: "", ownerId: user.id, report: emptyReport(user.name || lastAuthor()), dirty: true, syncedAt: null };
     rec.id = rec.report.id;
     await putReport(rec);
     upsert(rec);
@@ -179,7 +184,7 @@ export function EvacuationApp({ user }: { user: Me }) {
         <div className="min-w-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-formast.png" alt="FORMAST" width={312} height={80} className="h-8 w-auto" />
-          <div className="mt-0.5 truncate text-xs text-slate-500">Exercices d'évacuation · {user.name}</div>
+          <div className="mt-0.5 truncate text-xs text-slate-500">Exercices d'évacuation{user.name ? ` · ${user.name}` : ""}</div>
         </div>
         <span className={`badge shrink-0 ${online ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`} role="status">
           {online ? "● En ligne" : "● Hors ligne"}
@@ -259,7 +264,7 @@ export function EvacuationApp({ user }: { user: Me }) {
             );
           })}
 
-          {remote.length > 0 && (
+          {!open && remote.length > 0 && (
             <section className="pt-3">
               <h2 className="mb-2 text-sm font-semibold text-slate-500">Déjà transférés, absents de cet appareil</h2>
               <div className="space-y-2">
@@ -284,7 +289,7 @@ export function EvacuationApp({ user }: { user: Me }) {
             {online && (
               <p className="flex gap-4">
                 <a href="/rapports" className="underline">Rapports transférés</a>
-                <a href="/compte" className="underline">Mon compte</a>
+                {!open && <a href="/compte" className="underline">Mon compte</a>}
               </p>
             )}
           </footer>

@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { SignJWT, jwtVerify } from "jose";
 import type { User } from "@prisma/client";
 import { db } from "./db";
@@ -46,7 +47,25 @@ export async function destroySession() {
   clear(jar, PENDING);
 }
 
+/* ---------- Accès libre (provisoire) ----------
+   Tant que la variable REQUIRE_LOGIN ne vaut pas "1", l'appli s'ouvre sans connexion : tout le monde partage
+   un compte technique « invité » et les rapports transférés sont visibles par quiconque connaît l'adresse.
+   Pour réactiver les comptes : définir REQUIRE_LOGIN=1 puis redéployer. */
+export const OPEN_ACCESS = process.env.REQUIRE_LOGIN !== "1";
+export const GUEST_ID = "public";
+/** Comptes réels (le compte invité ne compte pas et ne peut pas se connecter). */
+export const realUsers = { id: { not: GUEST_ID } };
+
+async function guestUser() {
+  await connection(); // toujours à la demande : jamais de page figée au moment de la construction
+  return db.user.upsert({
+    where: { id: GUEST_ID }, update: {},
+    create: { id: GUEST_ID, email: "invite@exevac.invalid", name: "", role: "FORMATEUR", passwordHash: "!" },
+  });
+}
+
 export async function currentUser() {
+  if (OPEN_ACCESS) return guestUser();
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   try {
@@ -54,7 +73,7 @@ export async function currentUser() {
     if (!payload.sub) return null;
     const u = await db.user.findUnique({ where: { id: payload.sub } });
     // session révoquée (changement de mot de passe, « déconnecter partout », compte désactivé…)
-    if (!u || !u.active || (payload.v ?? 0) !== u.sessionVersion) return null;
+    if (!u || u.id === GUEST_ID || !u.active || (payload.v ?? 0) !== u.sessionVersion) return null;
     return u;
   } catch {
     return null;
@@ -90,7 +109,7 @@ export async function pending2faUser() {
 /** Utilisateur connecté (administrateur ou formateur). */
 export async function requireStaff() {
   const u = await currentUser();
-  if (!u && (await db.user.count()) === 0) redirect("/setup");
+  if (!u && (await db.user.count({ where: realUsers })) === 0) redirect("/setup");
   if (!u) redirect("/login");
   return u;
 }

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { requireStaff, roleLabel } from "@/lib/auth";
+import { OPEN_ACCESS, requireStaff, roleLabel } from "@/lib/auth";
 import { dailyMaintenance, required2faRoles } from "@/lib/security";
 import { Logo } from "@/components/Logo";
 
@@ -13,7 +13,7 @@ export default async function BureauLayout({ children }: { children: React.React
     { href: "/evacuation", label: "Appli terrain" },
     { href: "/rapports", label: "Rapports" },
     ...(user.role === "ADMIN" ? [{ href: "/equipe", label: "Équipe" }] : []),
-    { href: "/compte", label: "Mon compte" },
+    ...(OPEN_ACCESS ? [] : [{ href: "/compte", label: "Mon compte" }]),
   ];
   return (
     <div className="mx-auto min-h-screen max-w-5xl px-4 py-5">
@@ -21,10 +21,10 @@ export default async function BureauLayout({ children }: { children: React.React
         <Logo className="h-9" />
         <nav className="flex flex-wrap items-center gap-1 text-sm">
           {links.map((l) => <a key={l.href} href={l.href} className="rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100">{l.label}</a>)}
-          <form action="/logout" method="post"><button className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100">Se déconnecter</button></form>
+          {!OPEN_ACCESS && <form action="/logout" method="post"><button className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100">Se déconnecter</button></form>}
         </nav>
       </header>
-      <p className="mb-4 text-xs text-slate-500">{user.name} · {roleLabel(user.role)}</p>
+      <p className="mb-4 text-xs text-slate-500">{OPEN_ACCESS ? "Accès libre, sans connexion : toute personne qui connaît cette adresse voit ces rapports." : `${user.name} · ${roleLabel(user.role)}`}</p>
       {children}
     </div>
   );

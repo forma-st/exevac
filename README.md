@@ -4,8 +4,16 @@ Appli web pour téléphone et tablette (Next.js + Prisma) : le formateur chronom
 coche les repères observés, ajoute des photos, et obtient le **rapport PDF au modèle FORMAST**. Elle fonctionne
 **sans réseau** une fois ouverte ; les rapports sont transférés au serveur dès que le réseau revient.
 
+## Accès libre ou accès par comptes
+**Actuellement, l'appli s'ouvre sans connexion** : toute personne qui connaît l'adresse peut saisir un exercice,
+et voir, télécharger ou supprimer les rapports transférés (`/rapports`). Ne diffusez donc l'adresse qu'aux formateurs.
+
+Pour revenir à un accès privé par comptes : ajouter la variable d'environnement `REQUIRE_LOGIN` = `1` (et `SESSION_SECRET`)
+dans Vercel, puis redéployer. La première visite propose alors de créer le compte administrateur. Les rapports saisis
+en accès libre restent sur les appareils et sont rattachés au compte qui les transfère ensuite.
+
 ## Fonctionnement
-- **Connexion privée** : un compte par formateur (créé par un administrateur), limitation des tentatives,
+- **Connexion privée** (si `REQUIRE_LOGIN=1`) : un compte par formateur (créé par un administrateur), limitation des tentatives,
   double authentification (obligatoire pour les administrateurs), sessions révocables, journal de sécurité.
 - **Appli terrain** (`/evacuation`) : informations du site, objectifs, scénario, particularités ; bouton **Départ**,
   un appui par repère (heure et temps depuis le départ enregistrés, « Décocher » en cas d'erreur), photos, bouton **Arrêt** ;
@@ -17,13 +25,13 @@ coche les repères observés, ajoute des photos, et obtient le **rapport PDF au 
 
 ## Mettre en ligne (Vercel + Neon)
 1. Sur https://vercel.com : « Add New… → Project », importer ce dépôt.
-2. Dans « Environment Variables », ajouter `SESSION_SECRET` (une longue chaîne aléatoire, 40 caractères par exemple).
+2. Dans « Environment Variables », ajouter `SESSION_SECRET` (une longue chaîne aléatoire, 40 caractères par exemple), et `REQUIRE_LOGIN` = `1` pour un accès par comptes.
 3. « Deploy » (le premier déploiement échoue : la base n'existe pas encore, c'est normal).
 4. Onglet « Storage » → « Create Database » → **Neon** (Postgres) → région Europe → connecter au projet (ajoute `DATABASE_URL`).
 5. Onglet « Deployments » → « Redeploy ».
-6. Ouvrir l'adresse du site : la page de **première connexion** crée le compte administrateur, puis demande d'activer
+6. Ouvrir l'adresse du site. En accès libre, l'appli s'ouvre directement. Avec `REQUIRE_LOGIN=1`, la page de **première connexion** crée le compte administrateur, puis demande d'activer
    la double authentification (application Google Authenticator, Microsoft Authenticator…).
-7. Dans « Équipe », créer un compte par formateur et lui transmettre son mot de passe provisoire.
+7. Avec `REQUIRE_LOGIN=1` : dans « Équipe », créer un compte par formateur et lui transmettre son mot de passe provisoire.
 
 Sur le téléphone du formateur : se connecter, ouvrir l'appli une première fois avec du réseau, puis
 « Ajouter à l'écran d'accueil ». Elle s'ouvre ensuite sans réseau.

@@ -1,4 +1,5 @@
-import { requireStaff, roleLabel } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { OPEN_ACCESS, requireStaff, roleLabel } from "@/lib/auth";
 import { ResultForm } from "@/components/ResultForm";
 import { Card, Field, PageHeader } from "@/components/ui";
 import { changePassword, updateProfile } from "../actions";
@@ -6,6 +7,7 @@ import { changePassword, updateProfile } from "../actions";
 export const metadata = { title: "Mon compte" };
 
 export default async function Account() {
+  if (OPEN_ACCESS) redirect("/rapports");
   const u = await requireStaff();
   return (
     <>

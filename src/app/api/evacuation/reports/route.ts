@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { sanitizeReport, statusOf } from "@/lib/evacuation/model";
+import { GUEST_ID } from "@/lib/auth";
 import { evacAccess, fail, json, visibleWhere } from "@/lib/evacuation/server";
 
 /** Liste des rapports transférés. `?mine=1` : ceux de l'utilisateur ; `?since=<date ISO>` : modifiés depuis. */
@@ -31,13 +32,15 @@ export async function POST(req: Request) {
   if (!r) return fail("Rapport invalide.");
 
   const existing = await db.evacuationReport.findUnique({ where: { id: r.id }, select: { userId: true } });
-  if (existing && existing.userId !== a.user.id && a.user.role !== "ADMIN") return fail("Ce rapport appartient à un autre utilisateur.", 403);
+  // un rapport saisi en accès libre est repris par le compte qui le transfère ensuite
+  const claim = existing?.userId === GUEST_ID && a.user.id !== GUEST_ID;
+  if (existing && !claim && existing.userId !== a.user.id && a.user.role !== "ADMIN") return fail("Ce rapport appartient à un autre utilisateur.", 403);
   const fields = {
     authorName: r.author || a.user.name, clientName: r.client, address: r.address || null, exerciseDate: r.date,
     status: statusOf(r), startedAt: r.startedAt ? new Date(r.startedAt) : null, stoppedAt: r.stoppedAt ? new Date(r.stoppedAt) : null,
     data: JSON.stringify(r), deviceUpdatedAt: new Date(r.updatedAt),
   };
-  await db.evacuationReport.upsert({ where: { id: r.id }, create: { id: r.id, userId: a.user.id, ...fields }, update: fields });
+  await db.evacuationReport.upsert({ where: { id: r.id }, create: { id: r.id, userId: a.user.id, ...fields }, update: claim ? { ...fields, userId: a.user.id } : fields });
   // photos retirées du rapport : supprimées ; photos encore attendues : à envoyer une par une
   const keep = r.photos.map((p) => p.id);
   await db.evacuationPhoto.deleteMany({ where: { reportId: r.id, id: { notIn: keep } } });
