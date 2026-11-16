@@ -22,7 +22,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   SESSIONS_REVOKED: "Déconnexion de tous les appareils", USER_CREATE: "Compte créé", USER_DELETE: "Compte supprimé",
   USER_ACTIVE: "Compte activé / désactivé", ROLE_CHANGE: "Rôle modifié", RIGHTS_CHANGE: "Droits d'accès modifiés", POLICY_CHANGE: "Politique de sécurité modifiée",
   CLIENT_DELETE: "Client supprimé", DOSSIER_DELETE: "Dossier supprimé", CLIENT_EXPORT: "Export des données d'un client", CLIENT_ANONYMIZE: "Anonymisation des données d'un client",
-  CSV_EXPORT: "Export CSV de réponses", EVAC_DELETE: "Rapport d'évacuation supprimé", RATE_LIMIT: "Formulaire public : trop de requêtes",
+  CSV_EXPORT: "Export CSV de réponses", EVAC_DELETE: "Rapport d'évacuation supprimé", EVAC_EMAIL: "Rapport d'évacuation envoyé par e-mail", RATE_LIMIT: "Formulaire public : trop de requêtes",
 };
 
 export async function audit(action: string, data: { userId?: string | null; email?: string | null; detail?: string | null } = {}) {

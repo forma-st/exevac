@@ -45,6 +45,22 @@ npm run dev               # http://localhost:3000
 ```
 Le mode hors ligne (service worker) n'est actif qu'en production : `npm run build && npm start`.
 
+## Envoi des rapports par e-mail (facultatif)
+Sans configuration, l'appli ne propose pas l'envoi ; « Partager » et « Télécharger » restent disponibles.
+Pour l'activer, ajouter dans Vercel (Settings → Environment Variables), puis redéployer :
+
+| Variable | Valeur |
+| --- | --- |
+| `EMAIL_FROM` | expéditeur affiché, par exemple `FORMAST <rapports@votre-domaine.fr>` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | **option A** : les réglages d'envoi (SMTP) d'une boîte e-mail existante ; port `587` en général, `465` chez certains hébergeurs |
+| `RESEND_API_KEY` | **option B**, à la place du SMTP : clé du service [Resend](https://resend.com) (le domaine de `EMAIL_FROM` doit y être validé) |
+| `EMAIL_COPY_TO` | facultatif : adresse(s) en copie de chaque envoi, séparées par des virgules |
+| `EMAIL_REPLY_TO` | facultatif : adresse à laquelle le client répond |
+
+Une carte « Envoyer le rapport par e-mail » apparaît alors en bas de chaque exercice : le rapport est transféré,
+puis le serveur envoie le PDF en pièce jointe avec un message d'accompagnement. Garde-fous : 5 destinataires par
+envoi, 15 envois par heure et par appareil, 150 par jour au total.
+
 ## Transfert vers le logiciel de gestion de formation
 Définir `EVACUATION_API_TOKEN` (24 caractères au moins), puis appeler avec l'en-tête `Authorization: Bearer <jeton>` :
 - `GET /api/evacuation/reports?since=<date ISO>` : rapports modifiés depuis cette date ;

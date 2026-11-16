@@ -70,6 +70,8 @@ model EvacuationReport {
   stoppedAt       DateTime?
   data            String            // rapport complet (JSON, voir src/lib/evacuation/model.ts)
   deviceUpdatedAt DateTime          // dernière modification sur l'appareil
+  lastEmailAt     DateTime?         // dernier envoi du rapport par e-mail
+  lastEmailTo     String?
   photos          EvacuationPhoto[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt

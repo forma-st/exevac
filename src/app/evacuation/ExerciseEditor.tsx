@@ -6,10 +6,11 @@ import {
   type Checkpoint, type EvacReport, type Tri, type YesNo,
 } from "@/lib/evacuation/model";
 import { buildReportPdf } from "@/lib/evacuation/pdf";
+import { pushReport } from "@/lib/evacuation/sync";
 import { deletePhoto, getPhoto, putPhoto, putReport, shrinkPhoto, type ClientHint, type LocalReport } from "@/lib/evacuation/store";
 
 type Props = {
-  rec: LocalReport; clients: ClientHint[]; canSync: boolean; online: boolean; syncing: boolean;
+  rec: LocalReport; clients: ClientHint[]; canSync: boolean; canEmail: boolean; online: boolean; syncing: boolean;
   onSaved: (rec: LocalReport) => void; onBack: () => void; onSync: () => void; onDelete: () => void;
 };
 
@@ -90,7 +91,7 @@ function TimeInput({ label, at, onChange }: { label: string; at: number; onChang
   );
 }
 
-export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved, onBack, onSync, onDelete }: Props) {
+export function ExerciseEditor({ rec, clients, canSync, canEmail, online, syncing, onSaved, onBack, onSync, onDelete }: Props) {
   const [r, setR] = useState<EvacReport>(rec.report);
   const latest = useRef(r);
   const recRef = useRef(rec);
@@ -103,6 +104,9 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
   const [pdfBusy, setPdfBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [mailTo, setMailTo] = useState(() => { try { return localStorage.getItem(`exevac-mail-${rec.id}`) ?? ""; } catch { return ""; } });
+  const [mailNote, setMailNote] = useState("");
+  const [mail, setMail] = useState<{ kind: "busy" | "ok" | "error"; text: string } | null>(null);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
 
   /* ---------- Enregistrement automatique sur l'appareil ---------- */
@@ -238,6 +242,22 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
     if (!pdf) return;
     try { await navigator.share({ files: [pdf.file], title: `Rapport d'évacuation — ${reportTitle(r)}` }); }
     catch (e) { if ((e as Error).name !== "AbortError") setNotice("Le partage n'a pas abouti. Utilisez « Télécharger », puis envoyez le fichier depuis vos documents."); }
+  }
+  /** Envoi par e-mail : le rapport est d'abord transféré, puis le serveur envoie le PDF en pièce jointe. */
+  async function sendByEmail() {
+    setMail({ kind: "busy", text: "Transfert du rapport…" });
+    try {
+      await persist();
+      onSaved(await pushReport(rec.id));
+      setMail({ kind: "busy", text: "Envoi de l'e-mail…" });
+      const res = await fetch(`/api/evacuation/reports/${rec.id}/email`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: mailTo, message: mailNote }) });
+      const data = (await res.json().catch(() => ({}))) as { to?: string[]; error?: string };
+      if (!res.ok) throw new Error(data.error || `Erreur du serveur (${res.status})`);
+      try { localStorage.setItem(`exevac-mail-${rec.id}`, mailTo); } catch { /* stockage indisponible */ }
+      setMail({ kind: "ok", text: `Rapport envoyé à ${(data.to ?? []).join(", ")}.` });
+    } catch (e) {
+      setMail({ kind: "error", text: e instanceof TypeError ? "Connexion au serveur impossible : réessayez avec du réseau." : (e as Error).message });
+    }
   }
   const pdfFresh = pdf && pdf.version === r.updatedAt;
   const canShare = !!pdf && typeof navigator !== "undefined" && !!navigator.canShare?.({ files: [pdf.file] });
@@ -558,6 +578,22 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
           </button>
           {!online && <p className="text-xs text-slate-500">Hors ligne : le transfert vous sera proposé dès qu'un réseau sera disponible.</p>}
         </div>
+
+        {canEmail && (
+          <div className="card space-y-3 p-4">
+            <p className="text-sm font-semibold">Envoyer le rapport par e-mail</p>
+            <label className="block">
+              <span className="label">Destinataire(s)</span>
+              <input className={field} type="email" multiple inputMode="email" autoComplete="off" autoCapitalize="none" placeholder="contact@client.fr, direction@client.fr" value={mailTo} onChange={(e) => setMailTo(e.target.value)} />
+            </label>
+            <Text label="Message (facultatif)" rows={2} value={mailNote} onChange={setMailNote} />
+            <button className="btn-primary w-full py-3 text-base" disabled={mail?.kind === "busy" || syncing || !mailTo.trim()} onClick={sendByEmail}>
+              {mail?.kind === "busy" ? mail.text : "Envoyer le PDF par e-mail"}
+            </button>
+            {mail && mail.kind !== "busy" && <p className={`text-sm ${mail.kind === "ok" ? "text-emerald-800" : "text-brand-700"}`} role="status">{mail.text}</p>}
+            <p className="text-xs text-slate-500">Le rapport est d'abord transféré, puis envoyé en pièce jointe avec un court message d'accompagnement.</p>
+          </div>
+        )}
 
         <button className="w-full py-2 text-sm text-slate-500 underline" onClick={onDelete}>
           Supprimer ce rapport

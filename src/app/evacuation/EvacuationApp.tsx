@@ -41,6 +41,7 @@ export function EvacuationApp({ user, open = false }: { user: Me; open?: boolean
   const [progress, setProgress] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [offlineReady, setOfflineReady] = useState(false);
+  const [canEmail, setCanEmail] = useState(false); // messagerie configurée sur le serveur
   const busy = useRef(false);
 
   // Chargement des rapports gardés sur l'appareil
@@ -91,9 +92,10 @@ export function EvacuationApp({ user, open = false }: { user: Me; open?: boolean
       const res = await fetch("/api/evacuation/session", { cache: "no-store" });
       if (res.status === 401 || res.redirected) return setSession("expired");
       if (!res.ok) return;
-      const data = (await res.json()) as { user: Me };
+      const data = (await res.json()) as { user: Me; email?: boolean };
       if (data.user.id !== user.id) return setSession("other");
       setSession("ok");
+      setCanEmail(!!data.email);
       setServer(await fetchServerList());
     } catch { /* réseau instable : on réessaiera */ }
   }, [user.id]);
@@ -224,6 +226,7 @@ export function EvacuationApp({ user, open = false }: { user: Me; open?: boolean
           rec={current}
           clients={clients}
           canSync={canSync}
+          canEmail={canSync && canEmail}
           online={online}
           syncing={!!progress}
           onSaved={upsert}

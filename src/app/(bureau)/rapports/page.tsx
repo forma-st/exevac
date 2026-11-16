@@ -12,7 +12,7 @@ export default async function Evacuations() {
   const user = await requireStaff();
   const rows = await db.evacuationReport.findMany({
     where: user.role === "ADMIN" ? {} : { userId: user.id }, orderBy: [{ exerciseDate: "desc" }, { updatedAt: "desc" }], take: 300,
-    select: { id: true, userId: true, clientName: true, address: true, exerciseDate: true, status: true, authorName: true, updatedAt: true, _count: { select: { photos: true } } },
+    select: { id: true, userId: true, clientName: true, address: true, exerciseDate: true, status: true, authorName: true, updatedAt: true, lastEmailAt: true, lastEmailTo: true, _count: { select: { photos: true } } },
   });
   return (
     <>
@@ -36,7 +36,10 @@ export default async function Evacuations() {
                       <span className="font-medium">{r.clientName || "Sans nom"}</span>
                       {r.address && <div className="text-xs text-slate-500">{r.address}</div>}
                     </td>
-                    <td>{r.authorName}</td>
+                    <td>
+                      {r.authorName}
+                      {r.lastEmailAt && <div className="text-xs text-slate-500">Envoyé le {r.lastEmailAt.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })} à {r.lastEmailTo}</div>}
+                    </td>
                     <td><Badge className={STATUS_STYLE[r.status] ?? STATUS_STYLE.BROUILLON}>{STATUS_LABEL[r.status as ReportStatus] ?? r.status}</Badge></td>
                     <td>{r._count.photos}</td>
                     <td className="text-right whitespace-nowrap">
