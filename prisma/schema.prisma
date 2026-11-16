@@ -1,0 +1,89 @@
+// Base PostgreSQL (Neon, Supabase, Scaleway… ou Postgres local)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Rôles : ADMIN (gère les comptes, voit tous les rapports), FORMATEUR (ses propres rapports)
+model User {
+  id                String             @id @default(cuid())
+  email             String             @unique
+  name              String
+  passwordHash      String
+  role              String             @default("FORMATEUR")
+  active            Boolean            @default(true)
+  sessionVersion    Int                @default(0) // incrémenté pour révoquer toutes les sessions
+  totpSecret        String?            // double authentification (secret chiffré)
+  totpEnabled       Boolean            @default(false)
+  totpLastStep      Int?               // anti-rejeu du dernier code utilisé
+  recoveryCodes     String?            // codes de secours (empreintes JSON)
+  lastLoginAt       DateTime?
+  passwordChangedAt DateTime?
+  evacuationReports EvacuationReport[]
+  createdAt         DateTime           @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+// Journal de sécurité (connexions, comptes, suppressions…)
+model AuditLog {
+  id        String   @id @default(cuid())
+  at        DateTime @default(now())
+  userId    String?
+  email     String?
+  action    String
+  detail    String?
+  ip        String?
+  userAgent String?
+
+  @@index([at])
+  @@index([userId, at])
+}
+
+// Limitation de débit (tentatives de connexion)
+model RateHit {
+  id  String   @id @default(cuid())
+  key String
+  at  DateTime @default(now())
+
+  @@index([key, at])
+}
+
+// Rapport d'exercice d'évacuation saisi sur le terrain (hors ligne) puis transféré
+model EvacuationReport {
+  id              String            @id // UUID créé sur l'appareil du formateur
+  userId          String?
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  authorName      String
+  clientName      String
+  address         String?
+  exerciseDate    String            // AAAA-MM-JJ
+  status          String            @default("BROUILLON") // BROUILLON | EN_COURS | TERMINE
+  startedAt       DateTime?
+  stoppedAt       DateTime?
+  data            String            // rapport complet (JSON, voir src/lib/evacuation/model.ts)
+  deviceUpdatedAt DateTime          // dernière modification sur l'appareil
+  photos          EvacuationPhoto[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([userId, updatedAt])
+  @@index([updatedAt])
+}
+
+model EvacuationPhoto {
+  id        String           @id // UUID créé sur l'appareil
+  reportId  String
+  report    EvacuationReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  data      Bytes            // JPEG réduit sur l'appareil
+  createdAt DateTime         @default(now())
+
+  @@index([reportId])
+}

@@ -1,0 +1,16 @@
+{
+  "name": "FORMAST — Exercices d'évacuation",
+  "short_name": "Évacuation",
+  "description": "Saisie des exercices d'évacuation sur le terrain, même hors ligne, et rapport PDF.",
+  "lang": "fr",
+  "start_url": "/evacuation",
+  "scope": "/evacuation",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#cc1417",
+  "icons": [
+    { "src": "/evacuation-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/evacuation-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

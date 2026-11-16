@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme {
+  /* Rouge FORMAST : boutons, éléments actifs */
+  --color-brand-50: #fdf1f1;
+  --color-brand-100: #fadcdc;
+  --color-brand-500: #e02a2d;
+  --color-brand-600: #cc1417;
+  --color-brand-700: #a81013;
+  /* Bleu FORMAST : liens, focus */
+  --color-link-100: #dce5fd;
+  --color-link-500: #2f5cf0;
+  --color-link-600: #0a3bd4;
+  --color-link-700: #0830aa;
+  /* Gris foncé FORMAST */
+  --color-ink: #26251e;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Krub", "Figtree", ui-sans-serif, sans-serif;
+}
+
+h1, h2, h3 { font-family: var(--font-display); }
+
+body { @apply bg-slate-50 text-ink antialiased; }
+
+@utility input { @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-link-500 focus:ring-2 focus:ring-link-100; }
+@utility label { @apply mb-1 block text-sm font-medium text-slate-700; }
+@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition disabled:opacity-50; }
+@utility btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700; }
+@utility btn-secondary { @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
+@utility btn-danger { @apply btn bg-brand-600 text-white hover:bg-brand-700; }
+@utility card { @apply rounded-xl border border-slate-200 bg-white shadow-sm; }
+@utility badge { @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium; }
+
+@layer components {
+  .table { @apply w-full text-left text-sm; }
+  .table th { @apply border-b border-slate-200 px-4 py-2.5 text-xs font-semibold tracking-wide text-slate-500 uppercase; }
+  .table td { @apply border-b border-slate-100 px-4 py-3; }
+  .table tr:last-child td { @apply border-b-0; }
+}
+
+@keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
