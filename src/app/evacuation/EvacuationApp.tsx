@@ -1,8 +1,9 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { STATUS_LABEL, dateFr, emptyReport, reportTitle, statusOf, type ReportStatus } from "@/lib/evacuation/model";
+import { STATUS_LABEL, dateFr, emptyReport, reportTitle, sanitizeReport, statusOf, type ReportStatus } from "@/lib/evacuation/model";
 import { askPersistence, listReports, putReport, removeReport, type ClientHint, type LocalReport } from "@/lib/evacuation/store";
 import { SessionError, fetchServerList, pullReport, pushReport, type ServerRow } from "@/lib/evacuation/sync";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { ExerciseEditor } from "./ExerciseEditor";
 
 type Me = { id: string; name: string };
@@ -16,7 +17,7 @@ function useOnline() {
   );
 }
 
-const STATUS_STYLE: Record<ReportStatus, string> = { BROUILLON: "bg-slate-100 text-slate-600", EN_COURS: "bg-amber-100 text-amber-800", TERMINE: "bg-slate-700 text-white" };
+const STATUS_STYLE: Record<ReportStatus, string> = { BROUILLON: "bg-slate-100 text-slate-600", EN_COURS: "bg-amber-100 text-amber-800", TERMINE: "bg-strong text-white" };
 
 /** Fichiers de la page à garder pour le hors-ligne (envoyés au service worker). */
 function pageAssets() {
@@ -46,7 +47,8 @@ export function EvacuationApp({ user, open = false }: { user: Me; open?: boolean
   useEffect(() => {
     askPersistence();
     Promise.all([listReports(user.id), user.id === GUEST ? [] : listReports(GUEST)]).then(([mine, guest]) => {
-      const list = [...mine, ...guest];
+      // remise au format courant des rapports enregistrés par une version précédente de l'appli
+      const list = [...mine, ...guest].map((rec) => ({ ...rec, report: sanitizeReport(rec.report) ?? rec.report }));
       setRecs(list);
       const wanted = location.hash.slice(1);
       if (wanted && list.some((r) => r.id === wanted)) setOpenId(wanted);
@@ -183,7 +185,7 @@ export function EvacuationApp({ user, open = false }: { user: Me; open?: boolean
       <header className="flex items-center justify-between gap-3 pb-3">
         <div className="min-w-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-formast.png" alt="FORMAST" width={312} height={80} className="h-8 w-auto" />
+          <img src="/logo-formast.png" alt="FORMAST" width={312} height={80} className="logo h-8 w-auto" />
           <div className="mt-0.5 truncate text-xs text-slate-500">Exercices d'évacuation{user.name ? ` · ${user.name}` : ""}</div>
         </div>
         <span className={`badge shrink-0 ${online ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`} role="status">
@@ -284,7 +286,8 @@ export function EvacuationApp({ user, open = false }: { user: Me; open?: boolean
             </section>
           )}
 
-          <footer className="space-y-1 pt-4 text-xs text-slate-500">
+          <footer className="space-y-2 pt-4 text-xs text-slate-500">
+            <div className="flex items-center gap-2">Apparence <ThemeToggle /></div>
             <p>{offlineReady ? "✓ Appli disponible hors ligne sur cet appareil." : "Ouvrez cette page une fois avec du réseau pour qu'elle reste disponible hors ligne."} Ajoutez-la à l'écran d'accueil pour la retrouver comme une application.</p>
             {online && (
               <p className="flex gap-4">

@@ -2,7 +2,7 @@
    des champs du formulaire. Fonctionne à l'identique dans le navigateur (hors ligne) et sur le serveur. */
 import { LineCapStyle, PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage, type RGB } from "pdf-lib";
 import { TEMPLATE_PDF_BASE64 } from "./template";
-import { DEROULE_SLOTS, clockFull, clockLower, clockUpper, dateFr, evacTime, timeline, type EvacReport, type Tri } from "./model";
+import { DEROULE_SLOTS, axesText, clockFull, clockLower, clockUpper, dateFr, evacTime, scenarioText, timeline, type EvacReport, type Tri } from "./model";
 
 type Rect = [number, number, number, number]; // x1, y1, x2, y2 (points, origine en bas à gauche)
 type TextOpts = { size: number; min?: number; color?: RGB; align?: "left" | "center"; valign?: "top" | "middle"; multiline?: boolean; pad?: number; font?: PDFFont };
@@ -128,7 +128,7 @@ export async function buildReportPdf(r: EvacReport, photos: PdfPhoto[] = []): Pr
   T(p2, r.adaptDetail, [310, 631, 582, 653], { size: 9 });
   T(p2, r.techDetail, [309, 575, 582, 597], { size: 9 });
   T(p2, r.objOther, [21, 459, 571, 498], { size: 8, multiline: true, valign: "top", pad: 6 });
-  T(p2, r.scenario, [21, 279, 576, 397], { size: 9, multiline: true, valign: "top", pad: 8 });
+  T(p2, scenarioText(r), [21, 279, 576, 397], { size: 9, multiline: true, valign: "top", pad: 8 });
   if (r.pcSecurite) dot(p2, r.pcSecurite === "oui" ? box(158, 159) : box(189, 159));
   if (r.alarmeGenerale) dot(p2, r.alarmeGenerale === "oui" ? box(158, 132) : box(188, 132));
   T(p2, r.temporisation, [92, 98, 148, 122], { size: 9, align: "center" });
@@ -152,7 +152,7 @@ export async function buildReportPdf(r: EvacReport, photos: PdfPhoto[] = []): Pr
     T(p4, e.text, [right ? 395 : 96, DEROULE_TEXT_Y[row][0], right ? 578 : 279, DEROULE_TEXT_Y[row][1]], { size: 8, multiline: true, valign: "top", pad: 5 });
   });
   T(p4, r.pointsForts, [20, 23, 257, 286], { size: 10.5, multiline: true, valign: "top", pad: 8 });
-  T(p4, r.axes, [337, 22, 576, 285], { size: 10.5, multiline: true, valign: "top", pad: 8 });
+  T(p4, axesText(r), [337, 22, 576, 285], { size: 10.5, multiline: true, valign: "top", pad: 8 });
 
   // Pages annexes : suite du déroulé, puis photos
   const W = 595.28, H = 841.89, M = 36;

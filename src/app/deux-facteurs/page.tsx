@@ -41,7 +41,7 @@ export default async function Enroll({ searchParams }: { searchParams: Promise<{
           <li>Saisissez le code à 6 chiffres affiché.</li>
         </ol>
         <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-start">
-          <div className="h-[220px] w-[220px] shrink-0 rounded-lg border border-slate-200 bg-white" dangerouslySetInnerHTML={{ __html: svg }} aria-label="QR code à scanner" />
+          <div className="h-[220px] w-[220px] shrink-0 rounded-lg border border-slate-200 bg-surface" dangerouslySetInnerHTML={{ __html: svg }} aria-label="QR code à scanner" />
           <div className="text-xs text-slate-500">
             Impossible de scanner ? Saisissez cette clé à la main :
             <code className="mt-1 block rounded bg-slate-100 p-2 font-mono text-sm break-all text-slate-800">{secret.match(/.{1,4}/g)!.join(" ")}</code>

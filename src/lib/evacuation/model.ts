@@ -22,7 +22,8 @@ export type EvacReport = {
   techDetail: string;
   objOther: string;
   // scénario et particularités
-  scenario: string;
+  scenarioChoices: boolean[]; // cases cochées, dans l'ordre de SCENARIOS
+  scenario: string;           // précisions libres
   pcSecurite: YesNo;
   alarmeGenerale: YesNo;
   temporisation: string;
@@ -42,7 +43,8 @@ export type EvacReport = {
   charges: Tri[];
   moyens: string;
   pointsForts: string;
-  axes: string;
+  axes: string;               // axes rédigés par le formateur
+  axesExcluded: string[];     // points relevés automatiquement que le formateur a écartés (ex. "p5", "c2")
   photos: PhotoMeta[];
 };
 
@@ -58,6 +60,14 @@ export const OBJECTIVES: { before: string; bold: string; after: string }[] = [
   { before: "Évaluer la ", bold: "procédure de transfert horizontal", after: "" },
 ];
 export const objectiveLabel = (i: number) => OBJECTIVES[i].before + OBJECTIVES[i].bold + OBJECTIVES[i].after;
+
+/** Cas de scénario proposés en cases à cocher (plusieurs possibles), complétés par un texte libre. */
+export const SCENARIOS = ["Déclenchement DM", "Déclenchement SSI", "Simulation incendie"];
+/** Texte du cadre « Scénario » du rapport : cases cochées, puis précisions. */
+export function scenarioText(r: Pick<EvacReport, "scenarioChoices" | "scenario">) {
+  const picked = SCENARIOS.filter((_, i) => r.scenarioChoices[i]).join(" · ");
+  return [picked, r.scenario.trim()].filter(Boolean).join("\n");
+}
 
 export const PROCEDURES = [
   "Les occupants ont appliqué les consignes de sécurité incendie ?",
@@ -87,6 +97,47 @@ export const CHARGES = [
   "Les personnes présentant un handicap ont été bien prises en charge",
 ];
 
+/* ---------- Axes d'amélioration relevés automatiquement ----------
+   Chaque réponse défavorable (« non » en général ; « oui » pour la question inversée) propose un axe d'amélioration. */
+const PROCEDURE_AXES: { when: Tri; text: string }[] = [
+  { when: "non", text: "Consignes de sécurité incendie non appliquées par les occupants" },
+  { when: "non", text: "Alarme non entendue par tout le monde" },
+  { when: "non", text: "Évacuation incomplète : tout le monde n'a pas évacué" },
+  { when: "non", text: "Évacuation non immédiate à l'audition du signal d'alarme" },
+  { when: "non", text: "Évacuation à effectuer en bon ordre et dans le calme" },
+  { when: "non", text: "Portes et fenêtres non fermées" },
+  { when: "non", text: "Ascenseurs utilisés pendant l'évacuation" },
+  { when: "non", text: "Consigne « ne pas revenir en arrière » non respectée" },
+  { when: "non", text: "Point de rassemblement non rejoint par tout le monde" },
+  { when: "non", text: "Espace d'attente sécurisé non rejoint par les personnes à mobilité réduite" },
+  { when: "non", text: "Recensement des personnes difficile" },
+  { when: "oui", text: "Des personnes ont quitté la zone de rassemblement sans autorisation" },
+  { when: "non", text: "Consignes particulières de sécurité non respectées" },
+];
+const CHARGE_AXES = [
+  "Chargés d'évacuation non identifiables par un signe distinctif",
+  "Toutes les zones n'ont pas été visitées",
+  "Choix de l'itinéraire d'évacuation à revoir",
+  "Chaise d'évacuation non mise en œuvre",
+  "Compte rendu non effectué",
+  "Compte rendu non fait à la bonne personne",
+  "Prise en charge des personnes en situation de handicap à améliorer",
+];
+export type AutoAxis = { key: string; text: string; included: boolean };
+/** Points à améliorer déduits des réponses, dans l'ordre du rapport. */
+export function autoAxes(r: Pick<EvacReport, "procedures" | "charges" | "axesExcluded">): AutoAxis[] {
+  const out: AutoAxis[] = [];
+  const add = (key: string, text: string) => out.push({ key, text, included: !r.axesExcluded.includes(key) });
+  PROCEDURE_AXES.forEach((a, i) => { if (r.procedures[i] === a.when) add(`p${i}`, a.text); });
+  CHARGE_AXES.forEach((text, i) => { if (r.charges[i] === "non") add(`c${i}`, text); });
+  return out;
+}
+/** Texte du cadre « Axes d'améliorations » du rapport : points relevés retenus, puis texte du formateur. */
+export function axesText(r: Pick<EvacReport, "procedures" | "charges" | "axesExcluded" | "axes">) {
+  const auto = autoAxes(r).filter((a) => a.included).map((a) => `- ${a.text}`).join("\n");
+  return [auto, r.axes.trim()].filter(Boolean).join("\n");
+}
+
 export const TRI_LABEL: Record<Tri, string> = { oui: "Oui", non: "Non", sp: "Sans propos", "": "" };
 
 /** Repères proposés par défaut ; « key » = moment qui fixe le temps d'évacuation. */
@@ -114,11 +165,11 @@ export function emptyReport(author: string): EvacReport {
     id: newId(), version: 1, createdAt: now, updatedAt: now,
     client: "", address: "", date: todayIso(), author,
     objectives: OBJECTIVES.map(() => false), adaptDetail: "", techDetail: "", objOther: "",
-    scenario: "", pcSecurite: "", alarmeGenerale: "", temporisation: "", etabType: "", partOther: "",
+    scenarioChoices: SCENARIOS.map(() => false), scenario: "", pcSecurite: "", alarmeGenerale: "", temporisation: "", etabType: "", partOther: "",
     startedAt: null, stoppedAt: null, startNote: "Déclenchement de l'alarme", stopNote: "Fin de l'exercice d'évacuation",
     checkpoints: DEFAULT_CHECKPOINTS.map((c) => ({ ...c, id: newId() })), evacTimeManual: "",
     procedures: PROCEDURES.map(() => ""), notEvacuated: "", chargesText: "", charges: CHARGES.map(() => ""),
-    moyens: "", pointsForts: "", axes: "", photos: [],
+    moyens: "", pointsForts: "", axes: "", axesExcluded: [], photos: [],
   };
 }
 
@@ -213,7 +264,7 @@ export function sanitizeReport(input: unknown): EvacReport | null {
     address: str(o.address, 400), date: /^\d{4}-\d{2}-\d{2}$/.test(String(o.date)) ? String(o.date) : "", author: str(o.author, 120),
     objectives: OBJECTIVES.map((_, i) => arr(o.objectives)[i] === true),
     adaptDetail: str(o.adaptDetail, 300), techDetail: str(o.techDetail, 300), objOther: str(o.objOther, 1000),
-    scenario: str(o.scenario, 3000), pcSecurite: yn(o.pcSecurite), alarmeGenerale: yn(o.alarmeGenerale),
+    scenarioChoices: SCENARIOS.map((_, i) => arr(o.scenarioChoices)[i] === true), scenario: str(o.scenario, 3000), pcSecurite: yn(o.pcSecurite), alarmeGenerale: yn(o.alarmeGenerale),
     temporisation: str(o.temporisation, 20), etabType: str(o.etabType, 1500), partOther: str(o.partOther, 1500),
     startedAt: ts(o.startedAt), stoppedAt: ts(o.stoppedAt), startNote: str(o.startNote, 500), stopNote: str(o.stopNote, 500),
     checkpoints: arr(o.checkpoints).slice(0, MAX_CHECKPOINTS).flatMap((c) => {
@@ -224,6 +275,7 @@ export function sanitizeReport(input: unknown): EvacReport | null {
     procedures: PROCEDURES.map((_, i) => tri(arr(o.procedures)[i])), notEvacuated: str(o.notEvacuated, 10),
     chargesText: str(o.chargesText, 300), charges: CHARGES.map((_, i) => tri(arr(o.charges)[i])),
     moyens: str(o.moyens, 3000), pointsForts: str(o.pointsForts, 3000), axes: str(o.axes, 3000),
+    axesExcluded: arr(o.axesExcluded).filter((k): k is string => typeof k === "string" && /^[pc]\d{1,2}$/.test(k)).slice(0, 40),
     photos: arr(o.photos).slice(0, MAX_PHOTOS).flatMap((p) => {
       const x = (p ?? {}) as Record<string, unknown>;
       return isUuid(x.id) ? [{ id: x.id, caption: str(x.caption, 200), takenAt: ts(x.takenAt) ?? now }] : [];
@@ -249,7 +301,7 @@ export function toExport(r: EvacReport, extra: { formateur: { id: string | null;
     dateExercice: r.date || null,
     objectifs: OBJECTIVES.map((_, i) => ({ libelle: objectiveLabel(i), retenu: r.objectives[i], precision: i === 4 ? r.adaptDetail : i === 5 ? r.techDetail : "" })),
     objectifAutre: r.objOther,
-    scenario: r.scenario,
+    scenario: { cas: SCENARIOS.map((libelle, i) => ({ libelle, retenu: r.scenarioChoices[i] })), precisions: r.scenario, texte: scenarioText(r) },
     particularites: { pcSecurite: r.pcSecurite || null, alarmeGenerale: r.alarmeGenerale || null, temporisationMinutes: r.temporisation || null, typeEtablissement: r.etabType, autre: r.partOther },
     chronologie: {
       depart: iso(r.startedAt), finEvacuation: iso(end), arret: iso(r.stoppedAt),
@@ -263,7 +315,8 @@ export function toExport(r: EvacReport, extra: { formateur: { id: string | null;
     chargesEvacuation: { appreciation: r.chargesText, points: CHARGES.map((q, i) => ({ question: q, reponse: r.charges[i] || null })) },
     moyensTechniques: r.moyens,
     pointsForts: r.pointsForts,
-    axesAmelioration: r.axes,
+    axesAmelioration: axesText(r),
+    axesAmeliorationReleves: autoAxes(r).filter((a) => a.included).map((a) => a.text),
     photos: r.photos.map((p) => ({ id: p.id, legende: p.caption, priseLe: iso(p.takenAt), url: extra.photoUrl(p.id) })),
     pdf: extra.pdfUrl,
   };

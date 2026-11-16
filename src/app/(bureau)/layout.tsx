@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { OPEN_ACCESS, requireStaff, roleLabel } from "@/lib/auth";
 import { dailyMaintenance, required2faRoles } from "@/lib/security";
 import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 /** Écrans de bureau : rapports transférés, comptes, mon compte. */
 export default async function BureauLayout({ children }: { children: React.ReactNode }) {
@@ -24,7 +25,10 @@ export default async function BureauLayout({ children }: { children: React.React
           {!OPEN_ACCESS && <form action="/logout" method="post"><button className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100">Se déconnecter</button></form>}
         </nav>
       </header>
-      <p className="mb-4 text-xs text-slate-500">{OPEN_ACCESS ? "Accès libre, sans connexion : toute personne qui connaît cette adresse voit ces rapports." : `${user.name} · ${roleLabel(user.role)}`}</p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-slate-500">{OPEN_ACCESS ? "Accès libre, sans connexion : toute personne qui connaît cette adresse voit ces rapports." : `${user.name} · ${roleLabel(user.role)}`}</p>
+      <ThemeToggle />
+      </div>
       {children}
     </div>
   );

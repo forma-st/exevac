@@ -38,7 +38,7 @@ export function UserRowActions({ id, name, role, active, isMe, onRole, onActive,
       </button>
       {pwd?.password && (
         <div className="basis-full rounded-lg bg-emerald-50 px-3 py-2 text-right text-xs text-emerald-800">
-          Nouveau mot de passe : <code className="rounded bg-white px-1">{pwd.password}</code>
+          Nouveau mot de passe : <code className="rounded bg-surface px-1">{pwd.password}</code>
         </div>
       )}
     </div>

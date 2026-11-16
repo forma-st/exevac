@@ -1,8 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  CHARGES, MAX_CHECKPOINTS, MAX_PHOTOS, NOT_EVACUATED_AFTER, OBJECTIVES, PROCEDURES,
-  chrono, clockFull, durationFr, evacTime, evacuatedAt, newId, pdfFileName, reportTitle, sinceStart, statusOf, timeline, todayIso,
+  CHARGES, MAX_CHECKPOINTS, MAX_PHOTOS, NOT_EVACUATED_AFTER, OBJECTIVES, PROCEDURES, SCENARIOS,
+  autoAxes, chrono, clockFull, durationFr, evacTime, evacuatedAt, newId, pdfFileName, reportTitle, sinceStart, statusOf, timeline, todayIso,
   type Checkpoint, type EvacReport, type Tri, type YesNo,
 } from "@/lib/evacuation/model";
 import { buildReportPdf } from "@/lib/evacuation/pdf";
@@ -44,7 +44,7 @@ function Choice<T extends string>({ value, options, onChange, label }: { value: 
       {options.map(([v, text], i) => (
         <button
           key={v} type="button" aria-pressed={value === v} onClick={() => onChange(value === v ? "" : v)}
-          className={`min-w-12 px-2.5 py-2.5 text-xs font-semibold ${i ? "border-l border-slate-300" : ""} ${value === v ? (v === "non" ? "bg-brand-600 text-white" : v === "sp" ? "bg-slate-500 text-white" : "bg-emerald-600 text-white") : "bg-white text-slate-500"}`}
+          className={`min-w-12 px-2.5 py-2.5 text-xs font-semibold ${i ? "border-l border-slate-300" : ""} ${value === v ? (v === "non" ? "bg-brand-600 text-white" : v === "sp" ? "bg-mid text-white" : "bg-emerald-600 text-white") : "bg-surface text-slate-500"}`}
         >{text}</button>
       ))}
     </div>
@@ -53,10 +53,13 @@ function Choice<T extends string>({ value, options, onChange, label }: { value: 
 const TRI: [Exclude<Tri, "">, string][] = [["oui", "OUI"], ["non", "NON"], ["sp", "S.P."]];
 const YN: [Exclude<YesNo, "">, string][] = [["oui", "OUI"], ["non", "NON"]];
 
-function Question({ text, children }: { text: string; children: React.ReactNode }) {
+function Question({ text, flagged, children }: { text: string; flagged?: boolean; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 border-t border-slate-100 py-2.5 first:border-t-0">
-      <span className="min-w-0 text-sm">{text}</span>
+      <span className="min-w-0 text-sm">
+        {text}
+        {flagged && <span className="block text-xs font-medium text-amber-800">↳ ajouté aux axes d'amélioration</span>}
+      </span>
       {children}
     </div>
   );
@@ -240,6 +243,8 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
   const canShare = !!pdf && typeof navigator !== "undefined" && !!navigator.canShare?.({ files: [pdf.file] });
 
   const events = timeline(r);
+  const auto = autoAxes(r);
+  const flagged = new Set(auto.filter((a) => a.included).map((a) => a.key));
   const evacEnd = evacuatedAt(r);
 
   return (
@@ -252,8 +257,8 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
           </span>
         </div>
         {running && r.startedAt && (
-          <div className="flex items-center justify-between rounded-xl bg-slate-800 px-4 py-2 text-white">
-            <span className="text-sm">Exercice en cours<br /><span className="text-slate-300">départ {clockFull(r.startedAt)}</span></span>
+          <div className="flex items-center justify-between rounded-xl bg-strong px-4 py-2 text-white">
+            <span className="text-sm">Exercice en cours<br /><span className="text-white/70">départ {clockFull(r.startedAt)}</span></span>
             <Running from={r.startedAt} />
           </div>
         )}
@@ -296,8 +301,15 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
       </Section>
 
       <Section title="Scénario">
-        <div className="card p-4">
-          <Text label="Scénario de l'exercice" rows={3} value={r.scenario} placeholder="Ex. : alarme générale déclenchée depuis un déclencheur manuel" onChange={(v) => update({ scenario: v })} />
+        <div className="card space-y-3 p-4">
+          {SCENARIOS.map((label, i) => (
+            <label key={label} className="flex items-center gap-3 text-sm font-medium">
+              <input type="checkbox" className="h-6 w-6 shrink-0 accent-brand-600" checked={r.scenarioChoices[i]}
+                onChange={(e) => update({ scenarioChoices: r.scenarioChoices.map((x, j) => (j === i ? e.target.checked : x)) })} />
+              {label}
+            </label>
+          ))}
+          <Text label="Précisions (facultatif)" rows={3} value={r.scenario} placeholder="Ex. : depuis le déclencheur manuel du 1er étage, fumigène dans le local archives" onChange={(v) => update({ scenario: v })} />
         </div>
       </Section>
 
@@ -317,7 +329,7 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
 
       <Section title="Déroulé de l'exercice">
         {!r.startedAt ? (
-          <button onClick={start} className="w-full rounded-2xl bg-emerald-600 px-4 py-6 font-display text-2xl font-bold tracking-wide text-white uppercase shadow active:bg-emerald-700">
+          <button onClick={start} className="w-full rounded-2xl bg-emerald-600 px-4 py-6 font-display text-2xl font-bold tracking-wide text-white uppercase shadow active:bg-emerald-500">
             ▶ Départ de l'exercice
           </button>
         ) : (
@@ -355,7 +367,7 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
                 </span>
               </button>
               {editing === c.id ? (
-                <div className="space-y-3 border-t border-slate-200 bg-white p-3.5">
+                <div className="space-y-3 border-t border-slate-200 bg-surface p-3.5">
                   <Text label="Intitulé" value={c.label} onChange={(v) => setCheckpoint(c.id, { label: v })} />
                   <Text label="Observation" rows={2} value={c.note} onChange={(v) => setCheckpoint(c.id, { note: v })} />
                   {c.at && <TimeInput label="Heure" at={c.at} onChange={(ms) => setCheckpoint(c.id, { at: ms }, true)} />}
@@ -387,7 +399,7 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
         </div>
 
         {!r.stoppedAt ? (
-          <button onClick={stop} disabled={!r.startedAt} className="w-full rounded-2xl bg-brand-600 px-4 py-6 font-display text-2xl font-bold tracking-wide text-white uppercase shadow active:bg-brand-700 disabled:opacity-30">
+          <button onClick={stop} disabled={!r.startedAt} className="w-full rounded-2xl bg-brand-600 px-4 py-6 font-display text-2xl font-bold tracking-wide text-white uppercase shadow active:bg-brand-500 disabled:opacity-30">
             ■ Arrêt de l'exercice
           </button>
         ) : (
@@ -428,7 +440,7 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
         <div className="card p-4">
           {PROCEDURES.map((q, i) => (
             <div key={i}>
-              <Question text={q}><Choice label={q} value={r.procedures[i]} options={TRI} onChange={(v) => update({ procedures: r.procedures.map((x, j) => (j === i ? v : x)) })} /></Question>
+              <Question text={q} flagged={flagged.has(`p${i}`)}><Choice label={q} value={r.procedures[i]} options={TRI} onChange={(v) => update({ procedures: r.procedures.map((x, j) => (j === i ? v : x)) })} /></Question>
               {i === NOT_EVACUATED_AFTER && (
                 <Question text="Nombre de personnes non évacuées">
                   <input className={`${field} w-20 text-center`} inputMode="numeric" value={r.notEvacuated} onChange={(e) => update({ notEvacuated: e.target.value })} aria-label="Nombre de personnes non évacuées" />
@@ -445,7 +457,7 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
           <Text label="Les chargés d'évacuation ont été :" value={r.chargesText} placeholder="organisés, réactifs…" onChange={(v) => update({ chargesText: v })} />
           <div className="mt-3">
             {CHARGES.map((q, i) => (
-              <Question key={i} text={q}><Choice label={q} value={r.charges[i]} options={TRI} onChange={(v) => update({ charges: r.charges.map((x, j) => (j === i ? v : x)) })} /></Question>
+              <Question key={i} text={q} flagged={flagged.has(`c${i}`)}><Choice label={q} value={r.charges[i]} options={TRI} onChange={(v) => update({ charges: r.charges.map((x, j) => (j === i ? v : x)) })} /></Question>
             ))}
           </div>
         </div>
@@ -461,7 +473,22 @@ export function ExerciseEditor({ rec, clients, canSync, online, syncing, onSaved
       <Section title="Points forts · Axes d'amélioration">
         <div className="card space-y-3 p-4">
           <Text label="Points forts" rows={4} value={r.pointsForts} onChange={(v) => update({ pointsForts: v })} />
-          <Text label="Axes d'amélioration" rows={4} value={r.axes} onChange={(v) => update({ axes: v })} />
+          {auto.length > 0 && (
+            <div className="rounded-lg bg-amber-50 p-3">
+              <p className="text-sm font-semibold text-amber-900">Relevés d'après vos réponses</p>
+              <p className="mb-2 text-xs text-amber-800">Ajoutés automatiquement aux axes d'amélioration du rapport. Décochez ceux à ne pas retenir.</p>
+              <div className="space-y-2">
+                {auto.map((a) => (
+                  <label key={a.key} className={`flex items-start gap-3 text-sm ${a.included ? "" : "text-slate-500 line-through"}`}>
+                    <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-brand-600" checked={a.included}
+                      onChange={(e) => update({ axesExcluded: e.target.checked ? r.axesExcluded.filter((k) => k !== a.key) : [...r.axesExcluded, a.key] })} />
+                    <span>{a.text}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          <Text label={auto.length ? "Autres axes d'amélioration" : "Axes d'amélioration"} rows={4} value={r.axes} onChange={(v) => update({ axes: v })} />
         </div>
       </Section>
 

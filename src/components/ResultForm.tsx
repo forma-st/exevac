@@ -22,7 +22,7 @@ export function ResultForm({ action, children, submit, className = "space-y-4" }
       {state?.password && (
         <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
           Identifiants à transmettre : <b>{state.email}</b> / mot de passe temporaire{" "}
-          <code className="rounded bg-white px-1.5 py-0.5">{state.password}</code>
+          <code className="rounded bg-surface px-1.5 py-0.5">{state.password}</code>
         </div>
       )}
     </form>

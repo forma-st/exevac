@@ -10,8 +10,10 @@ export const viewport: Viewport = { themeColor: "#cc1417" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
       <head>
+        {/* thème choisi sur cet appareil, appliqué avant l'affichage (sinon : réglage du système) */}
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem("exevac-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}` }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Krub:wght@500;600;700&display=swap" rel="stylesheet" />
       </head>
